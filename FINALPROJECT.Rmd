@@ -1,0 +1,129 @@
+---
+title: "Properties of the Perfect Pop Song"
+author: "Brooke Conley"
+date: "5/17/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("tidyverse")
+library("lubridate")
+library("dplyr")
+library("caret")
+library("rvest")
+library("corrplot")
+```
+
+## Introduction
+
+The way we listen to music today is very different from the way we listened to music 50 years ago. We have substantially more freedom when it comes to selecting which songs we want to listen to and when, and this fact, among many others, has influenced the way that music is produced. Before streaming services like Spotify and Apple music came around, if you wanted to have constant access to a song, it would likely cost you about a dollar. For the price of one (undiscounted) Spotify subscription, you could listen to a grand total of ten new songs per month. With Spotify, if you played new music continuously for every minute of the month, you could listen to approximately 14,600 new songs (assuming an average song is three minutes long and there is no repetition). While this example does not represent conventional use, in the most extreme case, you could save $14,590 in one month by purchasing a Spotify subscription in 2020 instead of individually purchasing each song through the iTunes store circa 2010. This situation is made even more unrealistic by the fact that the iPod you had in 2010 had enough store for only 7,000 songs, given that you paid extra for the 32 GB model. To say the least, times have changed. 
+
+Today's producers have made considerable changes to their methods to adapt to this. 
+
+```{r}
+
+tunes_tab <- read_csv("ultimate-spotify-tracks-db/SpotifyFeatures.csv")
+tunes_tab <- na.omit(tunes_tab)
+tunes_tab <- tunes_tab[!duplicated(tunes_tab$track_id),]
+tunes_tab$time_signature <- NULL
+tunes_tab <- tunes_tab[,c(1, 2, 3, 4, 11, 14, 5, 6, 7, 8, 9, 10, 12, 13)]
+tunes_tab
+
+```
+
+
+
+
+```{r}
+set.seed(1234)
+
+tunes_tab[sample(nrow(tunes_tab), 100), ] %>%
+  ggplot(aes(x=popularity, y = loudness))+
+  geom_point()+
+  theme_minimal()+
+  geom_smooth()+
+  labs(x="Popularity", y="Danceability", title="not sure")
+
+```
+
+```{r}
+tunes_tab %>% 
+  count(popularity) %>%
+  knitr::kable()
+```
+
+
+
+
+```{r}
+feature_names <- names(tunes_tab)[7:14]
+tunes_tab %>%
+  select(feature_names) %>%
+  scale() %>%
+  cor() %>%
+  corrplot::corrplot(method = 'color', 
+                     order = 'hclust', 
+                     type = 'upper', 
+                     diag = FALSE, 
+                     tl.col = 'black',
+                
+                     number.cex = 0.6,
+                    
+                     main = 'Audio Feature Correlation
+                     ')
+```
+
+
+
+
+
+```{r}
+tunes_tab %>%
+  select(c('genre', feature_names)) %>%
+  pivot_longer(cols = feature_names) %>%
+  ggplot(aes(x = value)) +
+  geom_density(aes(color = genre), alpha = 0.5) +
+  facet_wrap(~name, ncol = 3, scales = 'free') +
+  labs(title = 'Spotify Audio Feature Density - by Genre',
+       x = '', y = 'density') +
+  theme(axis.text.y = element_blank()) 
+```
+
+
+
+
+
+
+
+
+## The Question
+
+
+## Data Curation
+
+
+## Parsing and Data Management
+
+
+## Exploratory Data Analysis
+
+
+## Hypothesis Testing and Machine Learning
+
+
+## Insights
+
+
+
+
+
+
+
+
+
+
+
+
+
+
