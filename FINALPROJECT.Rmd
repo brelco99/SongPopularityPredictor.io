@@ -6,7 +6,7 @@ output:
   html_document:
     theme: cosmo 
 ---
-
+![Inspired by Spotify](spoty.png)
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
@@ -53,7 +53,8 @@ tunes_tab[sample(nrow(tunes_tab), 100), ] %>%
 tunes_tab %>% 
   group_by(genre) %>%
   count(popularity) %>%
-  knitr::kable()
+  knitr::kable() %>%
+head()
 ```
 
 
