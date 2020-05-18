@@ -1,0 +1,10 @@
+name: "test"
+output_dir: "master"
+navbar:
+  title: "testy"
+  left:
+  - text: "Home"
+   href: index.html
+  - text: "nothin"
+output:
+  html_document:
