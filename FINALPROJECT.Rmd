@@ -3,8 +3,8 @@ title: "Properties of the Perfect Pop Song"
 author: "Brooke Conley"
 date: "5/17/2020"
 output: 
-  prettydoc::html_pretty:
-    theme: cayman
+  html_document:
+    theme: cosmo 
 ---
 
 ```{r setup, include=FALSE}
@@ -51,6 +51,7 @@ tunes_tab[sample(nrow(tunes_tab), 100), ] %>%
 
 ```{r}
 tunes_tab %>% 
+  group_by(genre) %>%
   count(popularity) %>%
   knitr::kable()
 ```
