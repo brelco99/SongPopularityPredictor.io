@@ -1,8 +1,3 @@
 theme: jekyll-theme-hacker
-name: "Final Project"
-navbar:
-  title: "testy"
-  left:
-  - text: "Home"
-   href: index.html
-  - text: "nothin"
+title: testy
+
