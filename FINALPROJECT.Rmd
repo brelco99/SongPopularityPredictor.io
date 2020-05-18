@@ -2,7 +2,9 @@
 title: "Properties of the Perfect Pop Song"
 author: "Brooke Conley"
 date: "5/17/2020"
-output: html_document
+output: 
+  prettydoc::html_pretty:
+    theme: cayman
 ---
 
 ```{r setup, include=FALSE}
@@ -97,7 +99,7 @@ tunes_tab %>%
 
 
 
-## The Question
+## The Question: What do listeners want to hear, and how does it vary by genre? 
 
 
 ## Data Curation
