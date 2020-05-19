@@ -9,6 +9,9 @@ output:
 ![Inspired by Spotify](spoty.png)
 </center> [Source](https://www.google.com/url?sa=i&url=https%3A%2F%2Fdaynespromotions.com%2Fhow-to-grow-your-spotify-following%2F&psig=AOvVaw0cI4rQlicX8y-V_GYedhBD&ust=1589937724698000&source=images&cd=vfe&ved=0CAIQjRxqFwoTCPCgkt7hvukCFQAAAAAdAAAAABAD)
 
+<style>
+pre.darkbkgrnd { background-color:"#222222"; }
+</style>
 
 
 ```{r setup, include=FALSE}
@@ -20,8 +23,11 @@ library("caret")
 library("rvest")
 library("corrplot")
 library("ggdark")
+library("ggplot2")
 library("manipulate")
 library("RColorBrewer")
+library("randomForest")
+library("scales")
 ```
 
 
@@ -58,6 +64,8 @@ tunes_tab <- tunes_tab[!duplicated(tunes_tab$track_id),]
 tunes_tab$track_id <- NULL
 #Remove time signature column 
 tunes_tab$time_signature <- NULL
+#Remove unwanted genres
+tunes_tab <- tunes_tab[((tunes_tab$genre == 'Country') | (tunes_tab$genre == 'Rock') |(tunes_tab$genre == 'Rap') |(tunes_tab$genre == 'Pop')),]
 #Rearrange dataframe to separate char and double attributes
 tunes_tab <- tunes_tab[,c(1, 2, 3, 10, 13, 4, 5, 6, 7, 8, 9, 11, 12, 14, 15, 16)]
 #Show a tibble of the new dataframe 
@@ -78,17 +86,11 @@ non_numeric <- tunes_tab[1:6]
 tunes_tab <- cbind(non_numeric, stand_tunes)
 #Fixing the issue of two different "Children's Music" genres
 tunes_tab$genre[tunes_tab$genre == "Children's Music"] <- "Children’s Music"
-tunes_tab <- tunes_tab %>% 
-  mutate(new_pop = as.factor(case_when(((popularity >= 0) & (popularity < 10)) ~ "1",
-                         ((popularity >= 10) & (popularity < 20))~ "2",
-                         ((popularity >= 20) & (popularity < 30)) ~ "3",
-                         ((popularity >= 30) & (popularity < 40)) ~ "4",
-                         ((popularity >= 40) & (popularity < 50)) ~ "5",
-                         ((popularity >= 50) & (popularity < 60)) ~ "6",
-                         ((popularity >= 60) & (popularity < 70)) ~ "7",
-                         ((popularity >= 70) & (popularity < 80)) ~ "8",
-                         ((popularity >= 80) & (popularity < 90)) ~ "9",
-                         ((popularity >= 90)) ~ "10")))
+#Adding another population variable that will be 1 if popularity >= 70 and 0 otherwise  
+pop_bin <- tunes_tab$popularity
+pop_bin <- ifelse((tunes_tab$popularity >= 70), 1, 0) 
+#Bind this new column to the dataframe
+tunes_tab <- cbind(tunes_tab, pop_bin)
 #View summary data of attributes
 summary(stand_tunes)
 ```
@@ -96,27 +98,50 @@ summary(stand_tunes)
 
 ## Exploratory Data Analysis
 
-Now it is time to analyze what we have so far. 
+Now it is time to analyze what we have so far. First, we will look at overall trends as opposed to trends by genre.
 
-```{r, warning=FALSE, message=FALSE}
-col4 <- colorRampPalette(c("#7F0000", "red", "#FF7F00", "yellow", "#7FFF7F",
-                           "cyan", "#007FFF", "blue", "#00007F"))
+
+```{r, fig.width=8, fig.height=10, warning=FALSE, message=FALSE}
 library(ggcorrplot)
+
 feature_names <- names(tunes_tab)[6:16]
-tunes_tab %>%
+plot <- tunes_tab %>%
   select(feature_names) %>%
   scale() %>%
   cor() %>%
-   corrplot::corrplot(method = 'color', 
-                     order = 'hclust', 
-                     type = 'lower', 
-                     diag = FALSE, 
-                     tl.col = 'black',
-                     col = col4(10),
-                     number.cex = 0.6,) + dark_theme_gray()
+   ggcorrplot(type = "lower", hc.order = TRUE,
+         col = brewer.pal(n = 2, name = "Set2"))  + dark_theme_gray() 
+plot + theme(axis.text.x = element_text(angle = 90, hjust = 1),
+             rect = element_rect(fill = "#222222"), # all rectangles
+     panel.grid.major = element_line(colour = "#222222"),axis.title.x = element_blank(), axis.title.y = element_blank())
+
+
 
 ```
+We can see from this plot that there is a strong positive correlation between energy and loudness, and a strong negative correlation between acousticness and both energy and loudness. Energy, loudness, danceability, and valence are all positively correlated, while instrumentalness is negatively correlated with energy and loudness. Popularity is most strongly correlated with energy, loudness, and danceability, so we will keep an eye on those in particular. 
 
+
+```{r, fig.width=10, fig.height=10, warning=FALSE, message=FALSE}
+feature_names <- names(tunes_tab)[c(8, 10, 13)]
+plot <- tunes_tab %>%
+  select(c('genre', 'popularity', feature_names)) %>%
+  pivot_longer(cols = feature_names) %>%
+  ggplot(aes(x = value)) +
+  geom_density(aes(color = genre), alpha = 0.5) +
+  facet_wrap(~name, ncol = 1, scales = 'free') +
+  labs(title = 'Song Features vs Popularity Across All Genres',
+       x = '', y = 'Popularity') +
+  dark_theme_gray()
+plot <- plot +
+  theme(
+     rect = element_rect(fill = "#222222"), # all rectangles
+     panel.grid.major = element_line(color = "#222222"),
+    
+  ) 
+plot
+```
+
+We can see here (if you look closely) that classical music is more likely to be popular when it is on the lower end of the loudness spectrum, and that rock music tends to get increasingly popular as it gets louder.
 
 ```{r, warning=FALSE, message=FALSE}
 set.seed(1234)
@@ -136,10 +161,11 @@ plot <- plot +
 plot
 ```
 
+
 ```{r, fig.width=10, fig.height=10, warning=FALSE, message=FALSE}
 feature_names <- names(tunes_tab)[7:16]
 plot <- tunes_tab %>%
-  select(c('genre', 'new_pop', feature_names)) %>%
+  select(c('genre', 'popularity', feature_names)) %>%
   pivot_longer(cols = feature_names) %>%
   ggplot(aes(x = value)) +
   geom_density(aes(color = genre), alpha = 0.5) +
@@ -163,7 +189,7 @@ plot <- tunes_tab[sample(nrow(tunes_tab), 1000), ] %>%
   ggplot(aes(x=loudness, y = popularity))+
   geom_point()+
   dark_theme_gray()+
-  geom_smooth()+
+  geom_smooth(colour="green")+
   labs(x="Loudness",y="Popularity", title="Loudness vs Popularity")
 plot <- plot +
   theme(
@@ -201,18 +227,146 @@ plot
 
 
 
-
-
-
-
-
-
 ## Hypothesis Testing and Machine Learning
 
 Finally, it is time to build the model. 
 
 
+```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE}
+features_by_genre <- function(genre) {
+genre_data <- tunes_tab[tunes_tab$genre == genre,]
+song_features <- genre_data %>%
+  select(
+    pop_bin,
+    acousticness,
+    danceability,
+    duration_ms,
+    energy,
+    instrumentalness,
+    liveness,
+    loudness,
+    speechiness,
+    tempo,
+    valence
+  ) %>% 
+  na.omit()
+song_features
+}
+```
 
+
+```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE}
+song_features <- features_by_genre('Rap')
+song_features$pop_bin <-as.factor(song_features$pop_bin)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(1234)
+train <- sample(nrow(song_features), 0.7*nrow(song_features), replace = FALSE)
+train_set <- song_features[train,]
+valid_set <- song_features[-train,]
+```
+
+
+
+```{r, warning=FALSE, message=FALSE}
+model  <- randomForest(pop_bin ~ ., data = train_set, importance = TRUE, type = classification)
+```
+
+```{r, warning=FALSE, message=FALSE}
+importance(model)
+```
+
+```{r, warning=FALSE, message=FALSE}
+predictions <- predict(model, newdata = valid_set)
+table(predictions, valid_set$pop_bin)
+```
+
+Rock
+```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE}
+song_features <- features_by_genre('Rock')
+song_features$pop_bin <-as.factor(song_features$pop_bin)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(1234)
+train <- sample(nrow(song_features), 0.7*nrow(song_features), replace = FALSE)
+train_set <- song_features[train,]
+valid_set <- song_features[-train,]
+```
+
+
+
+```{r, warning=FALSE, message=FALSE}
+model  <- randomForest(pop_bin ~ ., data = train_set, importance = TRUE, type = classification)
+```
+
+```{r, warning=FALSE, message=FALSE}
+importance(model)
+```
+
+```{r, warning=FALSE, message=FALSE}
+predictions <- predict(model, newdata = valid_set)
+table(predictions, valid_set$pop_bin)
+```
+
+```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE}
+song_features <- features_by_genre('Country')
+song_features$pop_bin <-as.factor(song_features$pop_bin)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(1234)
+train <- sample(nrow(song_features), 0.7*nrow(song_features), replace = FALSE)
+train_set <- song_features[train,]
+valid_set <- song_features[-train,]
+```
+
+
+
+```{r, warning=FALSE, message=FALSE}
+model  <- randomForest(pop_bin ~ ., data = train_set, importance = TRUE, type = classification)
+```
+
+```{r, warning=FALSE, message=FALSE}
+importance(model)
+```
+
+```{r, warning=FALSE, message=FALSE}
+predictions <- predict(model, newdata = valid_set)
+table(predictions, valid_set$pop_bin)
+```
+
+```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE}
+song_features <- features_by_genre('Pop')
+song_features$pop_bin <-as.factor(song_features$pop_bin)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(1234)
+train <- sample(nrow(song_features), 0.7*nrow(song_features), replace = FALSE)
+train_set <- song_features[train,]
+valid_set <- song_features[-train,]
+```
+
+
+
+```{r, warning=FALSE, message=FALSE}
+model  <- randomForest(pop_bin ~ ., data = train_set, importance = TRUE, type = classification)
+```
+
+```{r, warning=FALSE, message=FALSE}
+importance(model)
+```
+
+```{r, warning=FALSE, message=FALSE}
+predictions <- predict(model, newdata = valid_set)
+table(predictions, valid_set$pop_bin)
+```
 
 ## Insights
 
