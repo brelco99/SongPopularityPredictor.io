@@ -1,12 +1,16 @@
 ---
-title: "Properties of the Perfect Pop Song"
+title: "Properties of the Perfect Popular Song (By Genre)"
 author: "Brooke Conley"
 date: "5/17/2020"
 output: 
   html_document:
-    theme: cosmo 
+    theme: darkly
 ---
 ![Inspired by Spotify](spoty.png)
+</center> [Source](https://www.google.com/url?sa=i&url=https%3A%2F%2Fdaynespromotions.com%2Fhow-to-grow-your-spotify-following%2F&psig=AOvVaw0cI4rQlicX8y-V_GYedhBD&ust=1589937724698000&source=images&cd=vfe&ved=0CAIQjRxqFwoTCPCgkt7hvukCFQAAAAAdAAAAABAD)
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
@@ -15,83 +19,182 @@ library("dplyr")
 library("caret")
 library("rvest")
 library("corrplot")
+library("ggdark")
+library("manipulate")
+library("RColorBrewer")
 ```
+
+
 
 ## Introduction
 
-The way we listen to music today is very different from the way we listened to music 50 years ago. We have substantially more freedom when it comes to selecting which songs we want to listen to and when, and this fact, among many others, has influenced the way that music is produced. Before streaming services like Spotify and Apple music came around, if you wanted to have constant access to a song, it would likely cost you about a dollar. For the price of one (undiscounted) Spotify subscription, you could listen to a grand total of ten new songs per month. With Spotify, if you played new music continuously for every minute of the month, you could listen to approximately 14,600 new songs (assuming an average song is three minutes long and there is no repetition). While this example does not represent conventional use, in the most extreme case, you could save $14,590 in one month by purchasing a Spotify subscription in 2020 instead of individually purchasing each song through the iTunes store circa 2010. This situation is made even more unrealistic by the fact that the iPod you had in 2010 had enough store for only 7,000 songs, given that you paid extra for the 32 GB model. To say the least, times have changed. 
+The way we listen to music today is very different from the way we listened to music 50 years ago. We have substantially more freedom when it comes to selecting which songs we want to listen to and when, and this fact, among many others, has influenced the way that music is produced. Historically, people listened to what was on the radio. While records and record players were commonplace in the 60s and 70s, a lot of the time these records served as personal copies of what was playing on the radio (or what had been, in years prior). People tend to prefer music they are familiar with, and with the huge surge in FM radio's popularity circa the 1960s and 70s came lots of familiarity with the musicians who managed to get radio stations to play their music. This contributed to the rise of hugely popular record labels that dominated the industry and left little room for competition. Today, listeners have more options; there are 1.2 million artists on Spotify alone. This means that getting a song on the radio isn't necessarily enough to bring it the type of success it would have found in decades prior. Nowadays, producers have started to try and boil popular music down to an algorithm; here is an interesting article about how AI is changing the music scene: 
+https://www.theverge.com/2018/8/31/17777008/artificial-intelligence-taryn-southern-amper-music
 
-Today's producers have made considerable changes to their methods to adapt to this. 
+The Times They Are a-Changin', to say the least. But what does this mean for us? Can you really boil music taste, which is seemingly so complex and personal, down to an algorithm? Is there a formula that can produce the perfect song for you? Not yet. However, they are becoming better and better at predicting which songs will appeal to the masses. Today, we are going to look at which features are most closely correlated with the popularity of a song for each of 20 Spotify genres, ranging from indie to opera to children's music. 
 
-```{r}
+This dataset was the ideal choice for conducting this experiment because of both its size and its range. The creator used the Spotify Web API to gather data on "approximately 10,000 [songs] per genre," which is plenty for our purposes. 
+The dataset can be found here - https://www.kaggle.com/zaheenhamidani/ultimate-spotify-tracks-db 
 
+The R Markdown file can be found here -
+https://brelco99.github.io/FINALPROJECT.Rmd
+
+The track properties we will be using today are genre, tempo, duration, and loudness, along with some less quantitative measures like energy, danceability, liveness, valence, acousticness, speechiness, and popularity, calculated by Spotify using their own metrics. 
+
+
+## The Question: What do listeners want to hear, and how does it vary by genre? 
+Can we predict the popularity of a song based on the metrics provided by Spotify? And is this consistent across genres?
+
+## Data Curation
+First, we import the song data. For sake of ease, we remove songs with any missing attributes from the dataframe. Then, using the unique track_id of each song, we check for (and remove) duplicate listings. This is the only place we will make use of track_id, so we remove that column from the dataframe. Finally, we remove the time_signature column, leaving us with only attributes that can be normalized in a meaningful manner. Rearranging the dataframe so that char attributes are in the first columns and numeric attributes make up the rest makes it easier to grab either of those subsets when we need to.
+```{r, warning=FALSE, message=FALSE}
+#Read in data
 tunes_tab <- read_csv("ultimate-spotify-tracks-db/SpotifyFeatures.csv")
+#Remove any incomplete data
 tunes_tab <- na.omit(tunes_tab)
+#Remove any duplicate song listings
 tunes_tab <- tunes_tab[!duplicated(tunes_tab$track_id),]
+#Remove track ID column
+tunes_tab$track_id <- NULL
+#Remove time signature column 
 tunes_tab$time_signature <- NULL
-tunes_tab <- tunes_tab[,c(1, 2, 3, 4, 11, 14, 5, 6, 7, 8, 9, 10, 12, 13)]
+#Rearrange dataframe to separate char and double attributes
+tunes_tab <- tunes_tab[,c(1, 2, 3, 10, 13, 4, 5, 6, 7, 8, 9, 11, 12, 14, 15, 16)]
+#Show a tibble of the new dataframe 
 tunes_tab
 
 ```
 
 
 
+## Parsing and Data Management
 
-```{r}
-set.seed(1234)
-
-tunes_tab[sample(nrow(tunes_tab), 100), ] %>%
-  ggplot(aes(x=popularity, y = loudness))+
-  geom_point()+
-  theme_minimal()+
-  geom_smooth()+
-  labs(x="Popularity", y="Danceability", title="not sure")
-
+Next, we normalize each of the numeric attributes except for popularity. Children's Music was showing up as multiple genres in plots later in this tutorial, and it became clear that there were two different types of apostrophes being used. After correcting this, we created a new column to split popularity into ten quantiles. It was originally a measurement from 0 to 100, so the new column will make it easier to view differences between each section. 
+```{r, warning=FALSE, message=FALSE}
+#Normalize the numeric attributes
+stand_tunes <- as.data.frame(scale(tunes_tab[7:16]))
+non_numeric <- tunes_tab[1:6]
+#Update tunes_tab with normalized attributes
+tunes_tab <- cbind(non_numeric, stand_tunes)
+#Fixing the issue of two different "Children's Music" genres
+tunes_tab$genre[tunes_tab$genre == "Children's Music"] <- "Children’s Music"
+tunes_tab <- tunes_tab %>% 
+  mutate(new_pop = as.factor(case_when(((popularity >= 0) & (popularity < 10)) ~ "1",
+                         ((popularity >= 10) & (popularity < 20))~ "2",
+                         ((popularity >= 20) & (popularity < 30)) ~ "3",
+                         ((popularity >= 30) & (popularity < 40)) ~ "4",
+                         ((popularity >= 40) & (popularity < 50)) ~ "5",
+                         ((popularity >= 50) & (popularity < 60)) ~ "6",
+                         ((popularity >= 60) & (popularity < 70)) ~ "7",
+                         ((popularity >= 70) & (popularity < 80)) ~ "8",
+                         ((popularity >= 80) & (popularity < 90)) ~ "9",
+                         ((popularity >= 90)) ~ "10")))
+#View summary data of attributes
+summary(stand_tunes)
 ```
 
-```{r}
-tunes_tab %>% 
-  group_by(genre) %>%
-  count(popularity) %>%
-  knitr::kable() %>%
-head()
-```
 
+## Exploratory Data Analysis
 
+Now it is time to analyze what we have so far. 
 
-
-```{r}
-feature_names <- names(tunes_tab)[7:14]
+```{r, warning=FALSE, message=FALSE}
+col4 <- colorRampPalette(c("#7F0000", "red", "#FF7F00", "yellow", "#7FFF7F",
+                           "cyan", "#007FFF", "blue", "#00007F"))
+library(ggcorrplot)
+feature_names <- names(tunes_tab)[6:16]
 tunes_tab %>%
   select(feature_names) %>%
   scale() %>%
   cor() %>%
-  corrplot::corrplot(method = 'color', 
+   corrplot::corrplot(method = 'color', 
                      order = 'hclust', 
-                     type = 'upper', 
+                     type = 'lower', 
                      diag = FALSE, 
                      tl.col = 'black',
-                
-                     number.cex = 0.6,
-                    
-                     main = 'Audio Feature Correlation
-                     ')
+                     col = col4(10),
+                     number.cex = 0.6,) + dark_theme_gray()
+
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(1234)
+
+plot <- tunes_tab[sample(nrow(tunes_tab), 1000), ] %>%
+  ggplot(aes(x=danceability, y=popularity))+
+  geom_point()+
+  dark_theme_gray()+
+  geom_smooth()+
+  labs(x="Danceability",y="Popularity", title="Danceability vs Popularity")
+plot <- plot +
+  theme(
+     rect = element_rect(fill = "#222222"), # all rectangles
+     panel.grid.major = element_line(colour = "#222222")
+   
+  )
+plot
+```
+
+```{r, fig.width=10, fig.height=10, warning=FALSE, message=FALSE}
+feature_names <- names(tunes_tab)[7:16]
+plot <- tunes_tab %>%
+  select(c('genre', 'new_pop', feature_names)) %>%
+  pivot_longer(cols = feature_names) %>%
+  ggplot(aes(x = value)) +
+  geom_density(aes(color = genre), alpha = 0.5) +
+  facet_wrap(~name, ncol = 3, scales = 'free') +
+  labs(title = 'Song Features vs Popularity Across All Genres',
+       x = '', y = 'Popularity') +
+  dark_theme_gray()
+plot <- plot +
+  theme(
+     rect = element_rect(fill = "#222222"), # all rectangles
+     panel.grid.major = element_line(color = "#222222"),
+    
+  ) 
+plot
+```
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(1234)
+
+plot <- tunes_tab[sample(nrow(tunes_tab), 1000), ] %>%
+  ggplot(aes(x=loudness, y = popularity))+
+  geom_point()+
+  dark_theme_gray()+
+  geom_smooth()+
+  labs(x="Loudness",y="Popularity", title="Loudness vs Popularity")
+plot <- plot +
+  theme(
+     rect = element_rect(fill = "#222222"), # all rectangles
+     panel.grid.major = element_line(colour = "#222222")
+   
+  )
+plot
 ```
 
 
 
 
 
-```{r}
-tunes_tab %>%
+```{r, fig.width=10, fig.height=10, warning=FALSE, message=FALSE}
+plot <- tunes_tab %>%
   select(c('genre', feature_names)) %>%
   pivot_longer(cols = feature_names) %>%
   ggplot(aes(x = value)) +
   geom_density(aes(color = genre), alpha = 0.5) +
   facet_wrap(~name, ncol = 3, scales = 'free') +
-  labs(title = 'Spotify Audio Feature Density - by Genre',
+  labs(title = 'Song Features vs Genre',
        x = '', y = 'density') +
-  theme(axis.text.y = element_blank()) 
+  dark_theme_gray()
+plot <- plot +
+  theme(
+     rect = element_rect(fill = "#222222"), # all rectangles
+     panel.grid.major = element_line(colour = "#222222"),
+    
+  ) 
+plot
 ```
 
 
@@ -101,19 +204,14 @@ tunes_tab %>%
 
 
 
-## The Question: What do listeners want to hear, and how does it vary by genre? 
 
-
-## Data Curation
-
-
-## Parsing and Data Management
-
-
-## Exploratory Data Analysis
 
 
 ## Hypothesis Testing and Machine Learning
+
+Finally, it is time to build the model. 
+
+
 
 
 ## Insights
