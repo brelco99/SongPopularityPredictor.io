@@ -9,9 +9,6 @@ output:
 ![Inspired by Spotify](spoty.png)
 </center> [Source](https://www.google.com/url?sa=i&url=https%3A%2F%2Fdaynespromotions.com%2Fhow-to-grow-your-spotify-following%2F&psig=AOvVaw0cI4rQlicX8y-V_GYedhBD&ust=1589937724698000&source=images&cd=vfe&ved=0CAIQjRxqFwoTCPCgkt7hvukCFQAAAAAdAAAAABAD)
 
-<style>
-pre.darkbkgrnd { background-color:"#222222"; }
-</style>
 
 
 ```{r setup, include=FALSE}
@@ -97,8 +94,11 @@ summary(stand_tunes)
 
 ## Exploratory Data Analysis
 
-Now it is time to analyze what we have so far. First, we will look at overall trends with respect to each feature, across all four genres. 
-
+Now it is time to analyze what we have so far. First, we will look at overall trends with respect to each feature, across all four genres. Check out the ggplot package
+https://ggplot2.tidyverse.org/reference/ggplot.html
+and the corrplot package 
+https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html
+to make your plots beautiful.
 ```{r, fig.width=10, fig.height=10, warning=FALSE, message=FALSE}
 #Store the feature names to use on plots
 feature_names <- names(tunes_tab)[7:16]
@@ -148,7 +148,7 @@ plot <- plot +
   ) 
 plot
 ```
-Much prettier. Now, looking at these graphs, we can see a few of the distinct features of each genre. Only a few trends stand out in particular in this visual. Rap tends to score lower on energy and slightly lower on valence than the other three, but also tends to be rated as more danceable. Country music tends to be the most neutral in terms of danceability of the group. Another way to look at this data (arguably the easier-to-read way) is by using a correlation plot:
+Much prettier. Now, looking at these graphs, we can see a few of the distinct features of each genre. Only a few trends stand out in particular in this visual. Rap tends to score lower on energy and slightly lower on valence than the other three, but also tends to be rated as more danceable. Country music tends to be the most neutral in terms of danceability of the group. Another way to look at this data (arguably the easier-to-read way) is by using a correlation plot (you'll need the ggcorrplot package to use this function in particular, helpful info on that here -> http://www.sthda.com/english/wiki/ggcorrplot-visualization-of-a-correlation-matrix-using-ggplot2):
 ```{r, fig.width=10, fig.height=8, warning=FALSE, message=FALSE}
 feature_names <- names(tunes_tab)[6:16]
 plot <- tunes_tab %>%
@@ -228,6 +228,9 @@ song_features
 ```
 
 Now we have our dataframe. We will start by creating a random forest model for predicting rap song popularity outcomes. The tutorial will mostly walk through the rap section and the process will be repeated for each other genre, with output displayed but code chunks not included to avoid redundancy. 
+Here are links to two sites I found useful for random forest information:
+https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
+https://www.hackerearth.com/practice/machine-learning/machine-learning-algorithms/tutorial-random-forest-parameter-tuning-r/tutorial/
 
 ### Rap 
 Here, we call the above function to get our rap-only dataframe. Then we plan to use pop_bin, which was previously a copy of popularity and varied substantially between genres, so we scale it to each one individually. We turn pop_bin into a column of 0s and 1s, depending on whether or not the songs are in the top 25% most popular songs of the genre in the dataset. Finally, we select pop_bin as our factor for the model.
