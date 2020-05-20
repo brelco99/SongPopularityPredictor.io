@@ -29,6 +29,7 @@ library("RColorBrewer")
 library("randomForest")
 library("scales")
 library("data.table")
+library("ggcorrplot")
 ```
 
 
@@ -78,10 +79,11 @@ We could also take out the artist and track name variables but it is not necessa
 
 ## Parsing and Data Management
 
-Next, we normalize each of the numeric attributes other than popularity. This will help us determine the correlation between the attributes. We can then take a peak at the summary stats for each feature (again, other than popularity).
+Next, we normalize each of the numeric attributes except for popularity. This will help us determine the correlation between the individual attributes. We can then take a peak at the summary stats for each feature (again, other than popularity).
 ```{r, warning=FALSE, message=FALSE}
 #Normalize the numeric attributes
 stand_tunes <- as.data.frame(scale(tunes_tab[7:16]))
+#Store the name vars
 non_numeric <- tunes_tab[1:6]
 #Update tunes_tab with normalized attributes
 tunes_tab <- cbind(non_numeric, stand_tunes)
@@ -98,27 +100,36 @@ summary(stand_tunes)
 Now it is time to analyze what we have so far. First, we will look at overall trends with respect to each feature, across all four genres. 
 
 ```{r, fig.width=10, fig.height=10, warning=FALSE, message=FALSE}
+#Store the feature names to use on plots
 feature_names <- names(tunes_tab)[7:16]
 plot <- tunes_tab %>%
   select(c(feature_names)) %>%
+  #Plot alteration- lengthens columns
   pivot_longer(cols = feature_names) %>%
+  #Plot the data and control aesthetics with aes
   ggplot(aes(x = value)) +
-  geom_density( alpha = 0.5) +
+  #Used to plot variable density
+  geom_density(alpha = 0.5) +
+  #Puts multiple similar plots in a smaller area, customizable
   facet_wrap(~name, ncol = 3, scales = 'free') +
+  #Label plot
   labs(title = 'Overall Feature Density',
        x = '', y = 'density') +
   dark_theme_gray()
+#Trying to get a dark background for the plot in HTML (not necessary)
 plot <- plot +
   theme(
      rect = element_rect(fill = "#222222"), # all rectangles
      panel.grid.major = element_line(color = "#222222"),
     
   ) 
+#Show plot output
 plot
 ```
 
 Next, we are going to spice it up a little by showing how each individual genre contributes to the above curves:
 ```{r, fig.width=10, fig.height=10, warning=FALSE, message=FALSE}
+#You know the drill
 feature_names <- names(tunes_tab)[7:16]
 plot <- tunes_tab %>%
   select(c('genre', feature_names)) %>%
@@ -138,14 +149,15 @@ plot <- plot +
 plot
 ```
 Much prettier. Now, looking at these graphs, we can see a few of the distinct features of each genre. Only a few trends stand out in particular in this visual. Rap tends to score lower on energy and slightly lower on valence than the other three, but also tends to be rated as more danceable. Country music tends to be the most neutral in terms of danceability of the group. Another way to look at this data (arguably the easier-to-read way) is by using a correlation plot:
-```{r, fig.width=10, fig.height=12, warning=FALSE, message=FALSE}
-library(ggcorrplot)
-
+```{r, fig.width=10, fig.height=8, warning=FALSE, message=FALSE}
 feature_names <- names(tunes_tab)[6:16]
 plot <- tunes_tab %>%
   select(feature_names) %>%
+  #Scales the original popularity variable for this purpose
   scale() %>%
+  #Calculates correlation
   cor() %>%
+  #Plots correlation- lower half of triangle, ordered by correlation coefficient to some extent
    ggcorrplot(type = "lower", hc.order = TRUE,
          col = brewer.pal(n = 2, name = "RdBu"))  + dark_theme_gray() 
 plot + theme(axis.text.x = element_text(angle = 90, hjust = 1),
@@ -156,7 +168,7 @@ plot + theme(axis.text.x = element_text(angle = 90, hjust = 1),
 
 ```
 
-This is more interesting to us because it lets us see a simpler representation of the correlations, and strong correlations mean easier predicting. There is unfortunately not a lot of strong correlation. However, we can see from this plot that there is a relatively strong positive correlation between energy and loudness, and a relatively strong negative correlation between acousticness and both energy and loudness. Energy, loudness, danceability, and valence are all positively correlated, while instrumentalness is negatively correlated with energy and loudness. Popularity is most strongly correlated with energy, loudness, and danceability. Interesting! 
+This lets us see a simpler representation of the correlations. There is unfortunately not a lot of very strong correlation. However, we can see from this plot that there is a relatively strong positive correlation between energy and loudness, and a relatively strong negative correlation between acousticness and both energy and loudness. Energy, loudness, danceability, and valence are all positively correlated, while instrumentalness is negatively correlated with energy and loudness. Popularity is most strongly correlated with energy, loudness, and danceability. Interesting! 
 
 We can plot the relationships between popularity and danceability, energy, and loudness:
 
@@ -180,9 +192,9 @@ plot <- plot +
 plot
 ```
 
-We can see here that increased danceability tends to increased popularity for rap, pop, and rock songs, but not country. Increasing energy tends to decrease popularity for rock songs, but only very slightly. There is not much of a relationship between energy and the other genres. Finally, as loudness increases, pop popularity increases notably, country popularity increases slightly, and the other two do not change much in either direction. It is clear that the genres each have distinct features that correlate with popularity (although country music has the weakest correlations of the lot).
+We can see here that increased danceability tends to increase popularity for rap, pop, and rock songs, but not country songs. Increasing energy tends to decrease popularity for rock songs, but only very slightly. There is not much of a relationship between energy and the other genres. Finally, as loudness increases, pop popularity increases notably, country popularity increases slightly, and the other two do not change much in either direction. It is clear that the genres each have distinct features that correlate with popularity (although country music has the weakest correlations of the lot).
 
-Now that we know that each genre has different features correlating with its popularity index, we can see which ones and to what scale by using Random Forest Modeling.
+Now that we know that each genre has different features correlating with its popularity index, we can see which ones and to what scale through the use of random forest modeling.
 
 
 ## Hypothesis Testing and Machine Learning
@@ -215,10 +227,10 @@ song_features
 }
 ```
 
-Now we have our dataframe. We will start by creating a random forest model for predicting rap song popularity outcomes.
+Now we have our dataframe. We will start by creating a random forest model for predicting rap song popularity outcomes. The tutorial will mostly walk through the rap section and the process will be repeated for each other genre, with code chunks not included but with output displayed. 
 
 ### Rap 
-Here, we call the above function to get our rap-only dataframe. Then we plan to use pop_bin, which was previously a copy of popularity and varied substantially between genres, so we scale it to each one individually. We turn pop_bin into a column of 0s and 1s, depending on whether or not they were in the top 25% most popular songs of the genre in the dataset. Finally, we select pop_bin as our factor for the model.
+Here, we call the above function to get our rap-only dataframe. Then we plan to use pop_bin, which was previously a copy of popularity and varied substantially between genres, so we scale it to each one individually. We turn pop_bin into a column of 0s and 1s, depending on whether or not the songs are in the top 25% most popular songs of the genre in the dataset. Finally, we select pop_bin as our factor for the model.
 ```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE}
 #Pull out genre data
 song_features <- features_by_genre('Rap')
@@ -233,44 +245,39 @@ song_features$popularity = NULL
 ```
 
 
+Now, we select our sample data. We need one set of data, train_set, to be used to train the random forest model how to interpret the data. The valid_set is used to compare to results from the trained model. 
 ```{r, warning=FALSE, message=FALSE}
-bestmtry <- tuneRF(song_features[,-10], song_features[,10], stepFactor=1.5, improve=1e-5, ntree=500)
-print(bestmtry)
-```
-
-```{r, warning=FALSE, message=FALSE}
+#Keeps your "random" samples consistent
 set.seed(1234)
+#Draw sample 
 train <- sample(nrow(song_features), 0.7*nrow(song_features), replace = FALSE)
+#Split sample between training data and data for future comparison
 train_set <- as.data.frame(song_features[train,])
 valid_set <- as.data.frame(song_features[-train,])
 ```
 
 
-We need to check if our data is imbalanced or not. Imbalanced classification problems typically are split 10% and 90%, and for both our testing and training data the distribution is closer to 23% and 77%. We only do this once, because there is no reason for collection methods to vary by genre.
+Now we create the model. There are many, many options when it comes to designing your random forest model, but for today's purposes we will leave several of the options to default. There are several ways to tune the parameters of your random forest model to get the best predictions. One way is to test which mtry value (number of variables randomly sampled at each split) results in the smallest error. I have already done this for each of the models and set the mtry option accordingly, but that code chunk in particular was very slow to run, so I will include the line I used as text:
 
-```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE}
-setDT(train_set)[,.N/nrow(train_set),pop_bin]
-```
+bestmtry <- tuneRF(song_features[,-10], song_features[,10], stepFactor=1.5, improve=1e-5, ntree=500)
 
-```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE}
-setDT(valid_set)[,.N/nrow(valid_set),pop_bin]
-```
-
-
-Now we create the model. 
 ```{r, warning=FALSE, message=FALSE}
 model  <- randomForest(pop_bin ~ ., data = train_set, importance = TRUE, type = classification, mtry = 2, ntree = 500)
 model
 ```
 
+We can see that the rate of error was 20.61%, which is not terrible. The model has a bad false negative rate but a solid true negative rate. Now we can take a deeper look into the results using the importance() function.
 ```{r, warning=FALSE, message=FALSE}
 importance(model)
 ```
+
+Based on this, we can see that popularity in rap music is most strongly associated with lower energy, and to a lesser extent lower loudness and speechiness. 
 
 ```{r, warning=FALSE, message=FALSE}
 predictions <- predict(model, newdata = valid_set)
 table(predictions, valid_set$pop_bin)
 ```
+Again, we can see that the model is much better at predicting negatives than positives, which makes sense given that the makeup up the original dataset is full of unpopular songs (there are less popular songs out there). Next, we have rock music.
 
 ### Rock
 
