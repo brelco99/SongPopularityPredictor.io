@@ -203,7 +203,7 @@ Finally, it is time to build the model. Can we predict which songs will be rated
 
 
 
-First, we read all of the data for one genre into the song_features dataframe. This is a function so we can reuse it for modeling the other genres. Pass in the genre of interest and receive a dataframe with 12 numeric variables in return. It is a good idea to try and omit empty entries whenever you are subsetting data. 
+First, we read all of the data for one genre into the song_features dataframe. This is a function so we can reuse it for modeling the other genres. Pass in the genre of interest and receive a dataframe with 12 numeric variables in return. It is a good idea to try and omit empty entries whenever you are subsetting data, so we make sure to do that as well. 
 ```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE}
 features_by_genre <- function(genre) {
 genre_data <- tunes_tab[tunes_tab$genre == genre,]
@@ -227,7 +227,7 @@ song_features
 }
 ```
 
-Now we have our dataframe. We will start by creating a random forest model for predicting rap song popularity outcomes. The tutorial will mostly walk through the rap section and the process will be repeated for each other genre, with code chunks not included but with output displayed. 
+Now we have our dataframe. We will start by creating a random forest model for predicting rap song popularity outcomes. The tutorial will mostly walk through the rap section and the process will be repeated for each other genre, with output displayed but code chunks not included to avoid redundancy. 
 
 ### Rap 
 Here, we call the above function to get our rap-only dataframe. Then we plan to use pop_bin, which was previously a copy of popularity and varied substantially between genres, so we scale it to each one individually. We turn pop_bin into a column of 0s and 1s, depending on whether or not the songs are in the top 25% most popular songs of the genre in the dataset. Finally, we select pop_bin as our factor for the model.
@@ -281,6 +281,7 @@ Again, we can see that the model is much better at predicting negatives than pos
 
 ### Rock
 
+-Grab data for rock genre
 ```{r, warning=FALSE, message=FALSE, stringsAsFactors = FALSE, echo=FALSE}
 song_features <- features_by_genre('Rock')
 song_features$pop_bin <- as.data.frame(scale(song_features[1]))
@@ -289,7 +290,7 @@ song_features$pop_bin <-as.factor(song_features$pop_bin)
 song_features$popularity = NULL
 ```
 
-
+-Select sample data and subset for training
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
 set.seed(1234)
 train <- sample(nrow(song_features), 0.7*nrow(song_features), replace = FALSE)
@@ -297,21 +298,24 @@ train_set <- song_features[train,]
 valid_set <- song_features[-train,]
 ```
 
-
+-Create model, tuning parameters as you feel fit
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
 model  <- randomForest(pop_bin ~ ., data = train_set, importance = TRUE, type = classification, mtry = 4, ntree = 500)
 model
 ```
 
+-Display importance stats
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
 importance(model)
 ```
-
+-Finally, check accuracy of prediction using the model
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
 predictions <- predict(model, newdata = valid_set)
 table(predictions, valid_set$pop_bin)
 ```
+Again, best at predicting true negatives. 
 
+Rinse and repeat.
 
 ### Country
 
@@ -322,7 +326,6 @@ song_features$pop_bin <- ifelse((song_features$pop_bin >= .675), 1, 0)
 song_features$pop_bin <-as.factor(song_features$pop_bin)
 song_features$popularity = NULL
 ```
-
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
 set.seed(1234)
@@ -380,9 +383,8 @@ table(predictions, valid_set$pop_bin)
 
 ## Insights
 
-The model had a similar error rate in predicting popularity all four genres; the pop model had an error rate of 20.82%, the country model 19.27%, the rock model 22.91%, and the rap model 20.12%. This is pretty decent performance, given that the random forest function was used with mostly default settings and we did not tune hyperparameters. We can see that dancibility, loudness, and energy are the most reliable indicators of popularity for pop songs; energy, speechiness, and loudness were the best indicators for country songs; energy, loudness, and valence for rock were the best indicators for rock songs; and energy, loudness, and speechiness are the most reliable indicators for rap songs. 
-In conclusion, this experiment does demonstrate that there is definitely the potential to optimize song popularity outcomes by tuning individual features.
-
+The model had a similar error rate in predicting popularity all four genres; the pop model had an error rate of 20.82%, the country model 19.27%, the rock model 23.3%, and the rap model 20.61%. This is decent performance, given that the random forest function was used with mostly default settings and we did not go great lengths to tune hyperparameters/optimize the model. We can see that dancibility, loudness, and energy are the most reliable indicators of popularity for pop songs; energy, speechiness, and loudness were the best indicators for country songs; energy, loudness, and valence for rock were the best indicators for rock songs; and energy, loudness, and speechiness are the most reliable indicators for rap songs. 
+In conclusion, this experiment demonstrates that there is definitely potential in the field of optimizing song popularity outcomes by tuning individual features to special standards for each genre. Maybe in the next couple of years, Spotify will produce a song catered to your personal feature preferences. Or maybe they will start to make music so perfect in terms of feature harmony that all music tastes will converge. Regardless of the outcome, the future is upon us. Thanks for reading! 
 
 
 

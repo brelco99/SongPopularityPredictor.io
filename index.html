@@ -567,7 +567,7 @@ plot</code></pre>
 <div id="hypothesis-testing-and-machine-learning" class="section level2">
 <h2>Hypothesis Testing and Machine Learning</h2>
 <p>Finally, it is time to build the model. Can we predict which songs will be rated with a popularity score of 70 or above for each genre, simply by feature analysis? Let’s see:</p>
-<p>First, we read all of the data for one genre into the song_features dataframe. This is a function so we can reuse it for modeling the other genres. Pass in the genre of interest and receive a dataframe with 12 numeric variables in return. It is a good idea to try and omit empty entries whenever you are subsetting data.</p>
+<p>First, we read all of the data for one genre into the song_features dataframe. This is a function so we can reuse it for modeling the other genres. Pass in the genre of interest and receive a dataframe with 12 numeric variables in return. It is a good idea to try and omit empty entries whenever you are subsetting data, so we make sure to do that as well.</p>
 <pre class="r"><code>features_by_genre &lt;- function(genre) {
 genre_data &lt;- tunes_tab[tunes_tab$genre == genre,]
 song_features &lt;- genre_data %&gt;%
@@ -588,7 +588,7 @@ song_features &lt;- genre_data %&gt;%
   na.omit()
 song_features
 }</code></pre>
-<p>Now we have our dataframe. We will start by creating a random forest model for predicting rap song popularity outcomes. The tutorial will mostly walk through the rap section and the process will be repeated for each other genre, with code chunks not included but with output displayed.</p>
+<p>Now we have our dataframe. We will start by creating a random forest model for predicting rap song popularity outcomes. The tutorial will mostly walk through the rap section and the process will be repeated for each other genre, with output displayed but code chunks not included to avoid redundancy.</p>
 <div id="rap" class="section level3">
 <h3>Rap</h3>
 <p>Here, we call the above function to get our rap-only dataframe. Then we plan to use pop_bin, which was previously a copy of popularity and varied substantially between genres, so we scale it to each one individually. We turn pop_bin into a column of 0s and 1s, depending on whether or not the songs are in the top 25% most popular songs of the genre in the dataset. Finally, we select pop_bin as our factor for the model.</p>
@@ -650,6 +650,9 @@ table(predictions, valid_set$pop_bin)</code></pre>
 </div>
 <div id="rock" class="section level3">
 <h3>Rock</h3>
+<p>-Grab data for rock genre</p>
+<p>-Select sample data and subset for training</p>
+<p>-Create model, tuning parameters as you feel fit</p>
 <pre><code>## 
 ## Call:
 ##  randomForest(formula = pop_bin ~ ., data = train_set, importance = TRUE,      type = classification, mtry = 4, ntree = 500) 
@@ -662,6 +665,7 @@ table(predictions, valid_set$pop_bin)</code></pre>
 ##      0  1 class.error
 ## 0 1181 30  0.02477291
 ## 1  333 14  0.95965418</code></pre>
+<p>-Display importance stats</p>
 <pre><code>##                           0           1 MeanDecreaseAccuracy MeanDecreaseGini
 ## acousticness     13.6401480  -8.4440974            9.8790282         53.53122
 ## danceability     13.2405161   2.5736566           13.0162726         58.54659
@@ -673,10 +677,13 @@ table(predictions, valid_set$pop_bin)</code></pre>
 ## speechiness       6.1771472  -2.9968379            4.5526246         55.58613
 ## tempo             5.5067315   0.2162929            5.0331975         59.71313
 ## valence          16.3529602  -8.1782935           10.9722990         55.62601</code></pre>
+<p>-Finally, check accuracy of prediction using the model</p>
 <pre><code>##            
 ## predictions   0   1
 ##           0 504 150
 ##           1  10   5</code></pre>
+<p>Again, best at predicting true negatives.</p>
+<p>Rinse and repeat.</p>
 </div>
 <div id="country" class="section level3">
 <h3>Country</h3>
@@ -741,7 +748,7 @@ table(predictions, valid_set$pop_bin)</code></pre>
 </div>
 <div id="insights" class="section level2">
 <h2>Insights</h2>
-<p>The model had a similar error rate in predicting popularity all four genres; the pop model had an error rate of 20.82%, the country model 19.27%, the rock model 22.91%, and the rap model 20.12%. This is pretty decent performance, given that the random forest function was used with mostly default settings and we did not tune hyperparameters. We can see that dancibility, loudness, and energy are the most reliable indicators of popularity for pop songs; energy, speechiness, and loudness were the best indicators for country songs; energy, loudness, and valence for rock were the best indicators for rock songs; and energy, loudness, and speechiness are the most reliable indicators for rap songs. In conclusion, this experiment does demonstrate that there is definitely the potential to optimize song popularity outcomes by tuning individual features.</p>
+<p>The model had a similar error rate in predicting popularity all four genres; the pop model had an error rate of 20.82%, the country model 19.27%, the rock model 23.3%, and the rap model 20.61%. This is decent performance, given that the random forest function was used with mostly default settings and we did not go great lengths to tune hyperparameters/optimize the model. We can see that dancibility, loudness, and energy are the most reliable indicators of popularity for pop songs; energy, speechiness, and loudness were the best indicators for country songs; energy, loudness, and valence for rock were the best indicators for rock songs; and energy, loudness, and speechiness are the most reliable indicators for rap songs. In conclusion, this experiment demonstrates that there is definitely potential in the field of optimizing song popularity outcomes by tuning individual features to special standards for each genre. Maybe in the next couple of years, Spotify will produce a song catered to your personal feature preferences. Or maybe they will start to make music so perfect in terms of feature harmony that all music tastes will converge. Regardless of the outcome, the future is upon us. Thanks for reading!</p>
 </div>
 
 
