@@ -71,7 +71,7 @@ tunes_tab <- tunes_tab[,c(1, 2, 3, 10, 13, 4, 5, 6, 7, 8, 9, 11, 12, 14, 15, 16)
 tunes_tab
 
 ```
-We could also take out the artist and track name variables but it is not necessary quite yet.
+We could also take out the artist and track name variables but it is not necessary just yet.
 
 
 ## Parsing and Data Management
@@ -387,7 +387,7 @@ table(predictions, valid_set$pop_bin)
 ## Insights
 
 The model had a similar error rate in predicting popularity all four genres; the pop model had an error rate of 20.82%, the country model 19.27%, the rock model 23.3%, and the rap model 20.61%. This is decent performance, given that the random forest function was used with mostly default settings and we did not go great lengths to tune hyperparameters/optimize the model. We can see that dancibility, loudness, and energy are the most reliable indicators of popularity for pop songs; energy, speechiness, and loudness were the best indicators for country songs; energy, loudness, and valence for rock were the best indicators for rock songs; and energy, loudness, and speechiness are the most reliable indicators for rap songs. 
-In conclusion, this experiment demonstrates that there is definitely potential in the field of optimizing song popularity outcomes by tuning individual features to special standards for each genre. Maybe in the next couple of years, Spotify will produce a song catered to your personal feature preferences. Or maybe they will start to make music so perfect in terms of feature harmony that all music tastes will converge. Regardless of the outcome, the future is upon us. Thanks for reading! 
+This experiment demonstrates that there is definitely potential in the field of optimizing song popularity outcomes by tuning individual features to special standards for each genre. Maybe in the next couple of years, Spotify will produce a song catered to your personal feature preferences. Or maybe they will start to make music so perfect in terms of feature harmony that all music tastes will converge. Regardless of the outcome, the future is upon us. Thanks for reading! 
 
 
 
