@@ -1,7 +1,6 @@
 ---
 title: "Properties of the Perfect Popular Song (By Genre)"
 author: "Brooke Conley"
-date: "5/17/2020"
 output: 
   html_document:
     theme: darkly
